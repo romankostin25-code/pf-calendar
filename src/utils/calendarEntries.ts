@@ -2,65 +2,60 @@ import { CalendarEvent, CalendarEntry, EpisodeEvent } from '../data/types';
 
 const CHIP = {
   brand_deal: 'bg-violet-100 text-violet-800 border-violet-200',
-  script: 'bg-pink-100 text-pink-800 border-pink-200',
-  filming: 'bg-blue-100 text-blue-800 border-blue-200',
-  edit: 'bg-sky-100 text-sky-800 border-sky-200',
-  publish: 'bg-green-100 text-green-800 border-green-200',
   reminder: 'bg-amber-100 text-amber-800 border-amber-200',
+  reminder_done: 'bg-gray-100 text-gray-400 border-gray-200 line-through',
+  stage_done: 'bg-green-100 text-green-700 border-green-200',
+  stage_in_progress: 'bg-blue-100 text-blue-800 border-blue-200',
+  stage_not_started: 'bg-gray-100 text-gray-500 border-gray-200',
 };
+
+function stageChipClass(status: string): string {
+  if (status === 'done') return CHIP.stage_done;
+  if (status === 'in_progress') return CHIP.stage_in_progress;
+  return CHIP.stage_not_started;
+}
+
+const STAGE_ICONS: Record<string, string> = {
+  'Draft 1': '📝', 'Draft 2': '📝', 'Draft 3': '📝', 'Draft 4': '📝', 'Draft 5': '📝',
+  'Comments': '💬', 'Comments 1': '💬', 'Comments 2': '💬', 'Comments 3': '💬',
+  'Final': '✅', 'Final draft': '✅',
+  'Graphics': '🎨',
+  'Thumbnail': '🖼️',
+  'Insets': '🔲',
+  'Publishing': '🚀',
+  'Filming': '🎬',
+  'Color Grading': '🎨',
+  'Editing': '✂️',
+};
+
+function stageIcon(name: string): string {
+  return STAGE_ICONS[name] ?? '•';
+}
 
 function episodeEntries(ep: EpisodeEvent): CalendarEntry[] {
   const entries: CalendarEntry[] = [];
 
-  if (ep.scriptDueDate) {
+  for (const stage of ep.stages) {
+    const date = stage.endDate;
+    if (!date) continue;
     entries.push({
-      key: `${ep.id}-script`,
-      date: ep.scriptDueDate,
+      key: `${ep.id}-${stage.id}`,
+      date,
       event: ep,
-      milestone: 'script',
-      label: `✏️ Script: ${ep.episodeName || ep.title}`,
-      chipClass: CHIP.script,
-    });
-  }
-  if (ep.filmingDate) {
-    entries.push({
-      key: `${ep.id}-filming`,
-      date: ep.filmingDate,
-      event: ep,
-      milestone: 'filming',
-      label: `🎬 Film: ${ep.episodeName || ep.title}`,
-      chipClass: CHIP.filming,
-    });
-  }
-  if (ep.editDeadline) {
-    entries.push({
-      key: `${ep.id}-edit`,
-      date: ep.editDeadline,
-      event: ep,
-      milestone: 'edit',
-      label: `✂️ Edit: ${ep.episodeName || ep.title}`,
-      chipClass: CHIP.edit,
-    });
-  }
-  if (ep.publishDate) {
-    entries.push({
-      key: `${ep.id}-publish`,
-      date: ep.publishDate,
-      event: ep,
-      milestone: 'publish',
-      label: `🚀 Publish: ${ep.episodeName || ep.title}`,
-      chipClass: CHIP.publish,
+      stage,
+      label: `${stageIcon(stage.name)} ${stage.name}: ${ep.episodeName || ep.title}`,
+      chipClass: stageChipClass(stage.status),
     });
   }
 
-  // Fallback: if no milestone dates, show on main date
+  // Fallback: if no stages have dates, show episode on its main date
   if (entries.length === 0) {
     entries.push({
       key: ep.id,
       date: ep.date,
       event: ep,
       label: `📺 ${ep.episodeName || ep.title}`,
-      chipClass: CHIP.filming,
+      chipClass: CHIP.stage_not_started,
     });
   }
 
@@ -87,7 +82,7 @@ export function toCalendarEntries(events: CalendarEvent[]): CalendarEntry[] {
         date: ev.dueDate,
         event: ev,
         label: `🔔 ${ev.title}`,
-        chipClass: ev.done ? 'bg-gray-100 text-gray-400 border-gray-200 line-through' : CHIP.reminder,
+        chipClass: ev.done ? CHIP.reminder_done : CHIP.reminder,
       });
     }
   }

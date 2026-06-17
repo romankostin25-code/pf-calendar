@@ -1,19 +1,20 @@
 import { useState, useEffect } from 'react';
 import { addMonths, subMonths, addWeeks, subWeeks, format } from 'date-fns';
 
-import { CalendarEvent, CalendarEntry, EventType, EpisodeEvent, FilterState, ViewMode } from './data/types';
+import { CalendarEvent, CalendarEntry, EventType, EpisodeEvent, FilterState, ViewMode, StageStatus } from './data/types';
 import { loadEvents, saveEvents } from './data/storage';
 
 import Sidebar from './components/Sidebar';
 import CalendarView from './components/CalendarView';
 import WeekView from './components/WeekView';
 import ListView from './components/ListView';
+import GanttView from './components/GanttView';
 import EventModal from './components/EventModal';
 import EventDetail from './components/EventDetail';
 
 const DEFAULT_FILTERS: FilterState = {
   types: ['brand_deal', 'episode', 'reminder'],
-  shows: ['PF Interviews', 'Rich Kid Explains', 'Albina IG/TikTok', 'Other'],
+  shows: ['Privileged Gossip', 'PF Interviews', 'RGM', 'Albina IG/TikTok', 'Other'],
   assignees: ['Roman', 'Timur', 'Albina', 'Victoria', 'Production'],
 };
 
@@ -21,6 +22,7 @@ export default function App() {
   const [events, setEvents] = useState<CalendarEvent[]>(loadEvents);
   const [view, setView] = useState<ViewMode>('month');
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [ganttDate, setGanttDate] = useState(new Date());
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const [selectedEntry, setSelectedEntry] = useState<CalendarEntry | null>(null);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
@@ -33,8 +35,7 @@ export default function App() {
   const filteredEvents = events.filter(ev => {
     if (!filters.types.includes(ev.type)) return false;
     if (ev.type === 'episode') {
-      const ep = ev as EpisodeEvent;
-      if (!filters.shows.includes(ep.show)) return false;
+      if (!filters.shows.includes((ev as EpisodeEvent).show)) return false;
     }
     if (ev.assignees.length > 0 && !ev.assignees.some(a => filters.assignees.includes(a))) return false;
     return true;
@@ -58,16 +59,22 @@ export default function App() {
     setEvents(prev => prev.map(e =>
       e.id === id && e.type === 'reminder' ? { ...e, done: !e.done } : e
     ));
-    // Refresh selected entry chip styling
     setSelectedEntry(null);
   }
 
-  function handleToggleChecklist(episodeId: string, key: keyof EpisodeEvent['checklist']) {
+  function handleCycleStageStatus(episodeId: string, stageId: string, newStatus: StageStatus) {
     setEvents(prev => prev.map(e => {
       if (e.id !== episodeId || e.type !== 'episode') return e;
       const ep = e as EpisodeEvent;
-      return { ...ep, checklist: { ...ep.checklist, [key]: !ep.checklist[key] } };
+      const stages = ep.stages.map(s => s.id === stageId ? { ...s, status: newStatus } : s);
+      return { ...ep, stages };
     }));
+    // Update selected entry's event reference so the detail panel reflects the change
+    setSelectedEntry(prev => {
+      if (!prev || prev.event.id !== episodeId) return prev;
+      const updated = events.find(e => e.id === episodeId);
+      return updated ? { ...prev, event: updated } : prev;
+    });
   }
 
   function openNew(type: EventType = 'episode', date?: Date) {
@@ -86,6 +93,7 @@ export default function App() {
   }
 
   function navLabel() {
+    if (view === 'gantt') return 'Gantt — Post-production';
     if (view === 'week') {
       const ws = new Date(currentDate);
       ws.setDate(ws.getDate() - ws.getDay());
@@ -96,11 +104,13 @@ export default function App() {
     return format(currentDate, 'MMMM yyyy');
   }
 
+  const showNavArrows = view !== 'gantt' && view !== 'list';
+
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
       <Sidebar
         view={view}
-        onViewChange={setView}
+        onViewChange={v => { setView(v); setSelectedEntry(null); }}
         filters={filters}
         onFiltersChange={setFilters}
         events={events}
@@ -112,27 +122,22 @@ export default function App() {
         {/* Top bar */}
         <header className="flex items-center justify-between px-5 py-3 bg-white border-b border-gray-200 flex-shrink-0">
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate('prev')}
-              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-800 transition-colors"
-            >
-              ◀
-            </button>
+            {showNavArrows && (
+              <button onClick={() => navigate('prev')} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-800 transition-colors">◀</button>
+            )}
             <h1 className="text-base font-bold text-gray-800 min-w-44 text-center">{navLabel()}</h1>
-            <button
-              onClick={() => navigate('next')}
-              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-800 transition-colors"
-            >
-              ▶
-            </button>
-            <button
-              onClick={() => setCurrentDate(new Date())}
-              className="ml-1 text-xs font-medium text-gray-500 hover:text-gray-800 px-2 py-1 rounded border border-gray-200 hover:border-gray-400 transition-colors"
-            >
-              Today
-            </button>
+            {showNavArrows && (
+              <button onClick={() => navigate('next')} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-800 transition-colors">▶</button>
+            )}
+            {showNavArrows && (
+              <button
+                onClick={() => setCurrentDate(new Date())}
+                className="ml-1 text-xs font-medium text-gray-500 hover:text-gray-800 px-2 py-1 rounded border border-gray-200 hover:border-gray-400 transition-colors"
+              >
+                Today
+              </button>
+            )}
           </div>
-
           <button
             onClick={() => openNew()}
             className="bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
@@ -164,6 +169,24 @@ export default function App() {
               onSelectEntry={setSelectedEntry}
             />
           )}
+          {view === 'gantt' && (
+            <GanttView
+              events={filteredEvents}
+              ganttDate={ganttDate}
+              onGanttDateChange={setGanttDate}
+              onSelectEvent={ev => {
+                // Find the first stage entry for this episode
+                const fakeEntry: CalendarEntry = {
+                  key: ev.id,
+                  date: ev.date,
+                  event: ev,
+                  label: ev.type === 'episode' ? `📺 ${(ev as EpisodeEvent).episodeName}` : ev.title,
+                  chipClass: 'bg-blue-100 text-blue-800 border-blue-200',
+                };
+                setSelectedEntry(fakeEntry);
+              }}
+            />
+          )}
         </main>
       </div>
 
@@ -180,7 +203,7 @@ export default function App() {
           }}
           onDelete={handleDelete}
           onToggleReminderDone={handleToggleReminderDone}
-          onToggleChecklist={handleToggleChecklist}
+          onCycleStageStatus={handleCycleStageStatus}
         />
       )}
 

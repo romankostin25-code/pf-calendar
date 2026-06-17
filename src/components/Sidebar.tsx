@@ -17,6 +17,7 @@ const VIEW_LABELS: { id: ViewMode; label: string; icon: string }[] = [
   { id: 'month', label: 'Month', icon: '▦' },
   { id: 'week', label: 'Week', icon: '☰' },
   { id: 'list', label: 'List', icon: '≡' },
+  { id: 'gantt', label: 'Gantt', icon: '▬' },
 ];
 
 const TYPE_CONFIG: { id: EventType; label: string; color: string }[] = [
@@ -31,15 +32,9 @@ export default function Sidebar({ view, onViewChange, filters, onFiltersChange, 
     new Date(e.dueDate) <= new Date(Date.now() + 7 * 86400000)
   ).length;
 
-  function toggleType(t: EventType) {
-    onFiltersChange({ ...filters, types: toggle(filters.types, t) });
-  }
-  function toggleShow(s: ShowName) {
-    onFiltersChange({ ...filters, shows: toggle(filters.shows, s) });
-  }
-  function toggleAssignee(a: TeamMember) {
-    onFiltersChange({ ...filters, assignees: toggle(filters.assignees, a) });
-  }
+  function toggleType(t: EventType) { onFiltersChange({ ...filters, types: toggle(filters.types, t) }); }
+  function toggleShow(s: ShowName) { onFiltersChange({ ...filters, shows: toggle(filters.shows, s) }); }
+  function toggleAssignee(a: TeamMember) { onFiltersChange({ ...filters, assignees: toggle(filters.assignees, a) }); }
 
   return (
     <aside className="w-56 flex-shrink-0 bg-gray-900 text-gray-200 flex flex-col h-screen overflow-y-auto">
@@ -68,13 +63,12 @@ export default function Sidebar({ view, onViewChange, filters, onFiltersChange, 
             key={v.id}
             onClick={() => onViewChange(v.id)}
             className={`w-full flex items-center gap-2 px-3 py-1.5 rounded text-sm mb-0.5 transition-colors ${
-              view === v.id
-                ? 'bg-gray-700 text-white font-semibold'
-                : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200'
+              view === v.id ? 'bg-gray-700 text-white font-semibold' : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200'
             }`}
           >
             <span className="text-base">{v.icon}</span>
             {v.label}
+            {v.id === 'gantt' && <span className="ml-auto text-xs text-gray-500 bg-gray-800 px-1.5 py-0.5 rounded">post-prod</span>}
           </button>
         ))}
       </div>
@@ -83,15 +77,10 @@ export default function Sidebar({ view, onViewChange, filters, onFiltersChange, 
       <div className="px-4 pt-5">
         <div className="text-xs font-semibold tracking-wider text-gray-500 uppercase mb-2">Type</div>
         {TYPE_CONFIG.map(({ id, label, color }) => (
-          <label key={id} className="flex items-center gap-2 px-1 py-1 cursor-pointer group">
+          <label key={id} className="flex items-center gap-2 px-1 py-1 cursor-pointer">
             <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${color} ${filters.types.includes(id) ? 'opacity-100' : 'opacity-30'}`} />
             <span className={`text-sm ${filters.types.includes(id) ? 'text-gray-200' : 'text-gray-500'}`}>{label}</span>
-            <input
-              type="checkbox"
-              className="sr-only"
-              checked={filters.types.includes(id)}
-              onChange={() => toggleType(id)}
-            />
+            <input type="checkbox" className="sr-only" checked={filters.types.includes(id)} onChange={() => toggleType(id)} />
           </label>
         ))}
       </div>
@@ -101,12 +90,7 @@ export default function Sidebar({ view, onViewChange, filters, onFiltersChange, 
         <div className="text-xs font-semibold tracking-wider text-gray-500 uppercase mb-2">Shows</div>
         {SHOW_NAMES.map(s => (
           <label key={s} className="flex items-center gap-2 px-1 py-0.5 cursor-pointer">
-            <input
-              type="checkbox"
-              className="w-3 h-3 accent-blue-500"
-              checked={filters.shows.includes(s)}
-              onChange={() => toggleShow(s)}
-            />
+            <input type="checkbox" className="w-3 h-3 accent-blue-500" checked={filters.shows.includes(s)} onChange={() => toggleShow(s)} />
             <span className={`text-xs ${filters.shows.includes(s) ? 'text-gray-300' : 'text-gray-600'}`}>{s}</span>
           </label>
         ))}
@@ -117,12 +101,7 @@ export default function Sidebar({ view, onViewChange, filters, onFiltersChange, 
         <div className="text-xs font-semibold tracking-wider text-gray-500 uppercase mb-2">Team</div>
         {TEAM_MEMBERS.map(a => (
           <label key={a} className="flex items-center gap-2 px-1 py-0.5 cursor-pointer">
-            <input
-              type="checkbox"
-              className="w-3 h-3 accent-violet-500"
-              checked={filters.assignees.includes(a)}
-              onChange={() => toggleAssignee(a)}
-            />
+            <input type="checkbox" className="w-3 h-3 accent-violet-500" checked={filters.assignees.includes(a)} onChange={() => toggleAssignee(a)} />
             <span className={`text-xs ${filters.assignees.includes(a) ? 'text-gray-300' : 'text-gray-600'}`}>{a}</span>
           </label>
         ))}
